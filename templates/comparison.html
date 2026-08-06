@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Comparison - CargoSight AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        base: {
+                            bg: '#0D0F12',
+                            surface: '#16181C',
+                            border: '#26292E',
+                        },
+                        text: {
+                            primary: '#EDEEF0',
+                            secondary: '#8A8F98',
+                        },
+                        accent: '#5B8DEF',
+                        status: {
+                            amber: '#D9A441',
+                            red: '#D9534F'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer base {
+            body { @apply bg-base-bg text-text-primary font-sans; }
+            h1, h2, h3, h4, h5, h6 { @apply font-semibold; }
+        }
+        @layer components {
+            .panel { @apply bg-base-surface border border-base-border; }
+            .btn { @apply border border-base-border bg-transparent text-text-primary px-4 py-2 text-[13px] rounded-[2px] transition-colors font-medium cursor-pointer; }
+            .btn-primary { @apply bg-accent border-accent text-white hover:bg-blue-600 hover:border-blue-600; }
+            .btn:focus, input:focus { @apply outline-none ring-1 ring-accent; }
+            .nav-link { @apply text-[14px] text-text-secondary pb-4 border-b-2 border-transparent hover:text-text-primary transition-colors; }
+            .nav-link.active { @apply text-text-primary border-accent font-medium; }
+        }
+        table { @apply w-full text-left border-collapse; }
+        th { @apply border-b border-base-border py-3 px-4 text-[13px] text-text-secondary font-normal; }
+        td { @apply border-b border-base-border py-3 px-4 text-[14px]; }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <header class="border-b border-base-border bg-base-bg px-6 pt-5">
+        <div class="max-w-[1600px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+            <div class="pb-4">
+                <h1 class="text-[16px] text-text-primary mb-1">Model comparison</h1>
+                <p class="text-[13px] text-text-secondary">Benchmark YOLO architectures</p>
+            </div>
+            
+            <nav class="flex gap-6 mt-auto">
+                <a href="{{ url_for('index') }}" class="nav-link">Scanner</a>
+                <a href="{{ url_for('comparison.compare') }}" class="nav-link active">Model comparison</a>
+                {% if session.role == 'Admin' %}
+                <a href="{{ url_for('auth.register') }}" class="nav-link">Add user</a>
+                {% endif %}
+                <a href="{{ url_for('auth.logout') }}" class="nav-link">Sign out</a>
+            </nav>
+        </div>
+    </header>
+    
+    <div class="max-w-[1600px] mx-auto w-full p-6 flex-1 flex flex-col gap-8 mt-4">
+
+        <div class="flex gap-4 items-end">
+            <div class="panel p-4 flex-1 rounded-[2px] flex flex-col md:flex-row items-center gap-4">
+                <div class="flex-1 w-full">
+                    <label class="block text-[13px] text-text-secondary mb-2">Upload test image</label>
+                    <input type="file" id="comp-file" class="block w-full text-[13px] text-text-secondary file:mr-4 file:py-1 file:px-3 file:rounded-[2px] file:border file:border-base-border file:text-[13px] file:font-medium file:bg-base-bg file:text-text-primary hover:file:bg-base-surface cursor-pointer">
+                </div>
+                <button onclick="runComparison()" id="run-btn" class="btn btn-primary whitespace-nowrap">Run benchmarks</button>
+            </div>
+            <a href="{{ url_for('comparison.history') }}" class="btn">View history</a>
+        </div>
+
+        <div id="loading" class="hidden text-[13px] text-text-secondary font-mono border-l-2 border-accent pl-3">
+            Running inferences... this may take a moment.
+        </div>
+
+        <div id="results-area" class="hidden flex flex-col gap-10">
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Winner Card -->
+                <div class="col-span-1 border-l-2 border-accent pl-4">
+                    <h3 class="text-[14px] text-text-secondary mb-4">Recommended model</h3>
+                    <div id="winner-content"></div>
+                </div>
+                
+                <!-- Table -->
+                <div class="col-span-2 panel rounded-[2px] overflow-hidden">
+                    <table>
+                        <thead class="bg-base-surface">
+                            <tr>
+                                <th>Model</th>
+                                <th>Objects</th>
+                                <th>Avg conf</th>
+                                <th>Time (ms)</th>
+                                <th>FPS</th>
+                                <th>mAP50</th>
+                            </tr>
+                        </thead>
+                        <tbody id="comparison-table-body" class="bg-base-bg">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="panel p-6 rounded-[2px]">
+                    <h3 class="text-[13px] text-text-secondary mb-6 text-center">Inference Time (ms)</h3>
+                    <canvas id="barChart"></canvas>
+                </div>
+                <div class="panel p-6 rounded-[2px]">
+                    <h3 class="text-[13px] text-text-secondary mb-6 text-center">Accuracy Metrics</h3>
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+            
+            <div>
+                <h2 class="text-[14px] text-text-secondary border-b border-base-border pb-2 mb-6">Side-by-side inference</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="images-container">
+                    <!-- Images injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let barChartInstance = null;
+        let radarChartInstance = null;
+        
+        Chart.defaults.color = '#8A8F98';
+        Chart.defaults.font.family = 'JetBrains Mono';
+
+        async function runComparison() {
+            const fileInput = document.getElementById('comp-file');
+            if(!fileInput.files[0]) {
+                alert("Please select an image first.");
+                return;
+            }
+            
+            const btn = document.getElementById('run-btn');
+            const loading = document.getElementById('loading');
+            
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+            loading.classList.remove('hidden');
+            document.getElementById('results-area').classList.add('hidden');
+            
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+            
+            try {
+                const res = await fetch('/api/compare', { method: 'POST', body: formData });
+                const data = await res.json();
+                
+                if(data.results) {
+                    renderResults(data.results);
+                }
+            } catch(e) {
+                alert("Error running comparison.");
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+                loading.classList.add('hidden');
+            }
+        }
+        
+        function renderResults(results) {
+            document.getElementById('results-area').classList.remove('hidden');
+            
+            const tbody = document.getElementById('comparison-table-body');
+            tbody.innerHTML = '';
+            
+            const imagesContainer = document.getElementById('images-container');
+            imagesContainer.innerHTML = '';
+            
+            const labels = [];
+            const infTimes = [];
+            const precisions = [];
+            const recalls = [];
+            const maps = [];
+            
+            let bestModel = results[0];
+            
+            results.forEach(r => {
+                labels.push(r.model);
+                infTimes.push(r.inference_time);
+                precisions.push(r.precision);
+                recalls.push(r.recall);
+                maps.push(r.map50);
+                
+                if(r.map50 > bestModel.map50) bestModel = r;
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="font-medium text-text-primary">${r.model}</td>
+                        <td class="font-mono text-text-secondary">${r.objects}</td>
+                        <td class="font-mono text-text-secondary">${r.avg_confidence}%</td>
+                        <td class="font-mono text-text-secondary">${r.inference_time}</td>
+                        <td class="font-mono text-text-secondary">${r.fps}</td>
+                        <td class="font-mono text-text-primary">${r.map50}</td>
+                    </tr>
+                `;
+                
+                imagesContainer.innerHTML += `
+                    <div class="panel p-4 rounded-[2px] flex flex-col">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-[13px] font-medium text-text-primary">${r.model}</span>
+                            ${r.model === bestModel.model ? '<span class="text-[10px] uppercase text-text-primary border border-base-border px-2 py-0.5 bg-base-surface">Winner</span>' : ''}
+                        </div>
+                        <div class="bg-base-bg flex-1 flex items-center justify-center border border-base-border relative min-h-[250px]">
+                            <img src="${r.image}" class="w-full h-auto object-contain">
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('winner-content').innerHTML = `
+                <div class="text-[28px] text-text-primary font-semibold mb-2">${bestModel.model}</div>
+                <div class="text-[13px] text-text-secondary flex justify-between border-b border-base-border py-1"><span>mAP50</span><span class="font-mono text-text-primary">${bestModel.map50}</span></div>
+                <div class="text-[13px] text-text-secondary flex justify-between border-b border-base-border py-1"><span>Avg conf</span><span class="font-mono text-text-primary">${bestModel.avg_confidence}%</span></div>
+                <div class="text-[13px] text-text-secondary flex justify-between pt-1"><span>Inf time</span><span class="font-mono text-text-primary">${bestModel.inference_time}ms</span></div>
+            `;
+            
+            if(barChartInstance) barChartInstance.destroy();
+            if(radarChartInstance) radarChartInstance.destroy();
+            
+            const chartOptions = {
+                responsive: true,
+                scales: { 
+                    y: { grid: { color: '#26292E' } }, 
+                    x: { grid: { color: '#26292E' } } 
+                },
+                plugins: { legend: { display: false } }
+            };
+
+            const ctxBar = document.getElementById('barChart').getContext('2d');
+            barChartInstance = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: infTimes,
+                        backgroundColor: '#5B8DEF',
+                    }]
+                },
+                options: chartOptions
+            });
+            
+            const ctxRadar = document.getElementById('radarChart').getContext('2d');
+            radarChartInstance = new Chart(ctxRadar, {
+                type: 'radar',
+                data: {
+                    labels: ['Precision', 'Recall', 'mAP50'],
+                    datasets: results.map((r, i) => ({
+                        label: r.model,
+                        data: [r.precision, r.recall, r.map50],
+                        backgroundColor: i === 0 ? 'rgba(91, 141, 239, 0.2)' : 'rgba(237, 238, 240, 0.1)',
+                        borderColor: i === 0 ? '#5B8DEF' : '#EDEEF0',
+                        pointBackgroundColor: i === 0 ? '#5B8DEF' : '#EDEEF0',
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    scales: { 
+                        r: { 
+                            angleLines: { color: '#26292E' }, 
+                            grid: { color: '#26292E' }, 
+                            ticks: { display: false, backdropColor: 'transparent' }
+                        } 
+                    },
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

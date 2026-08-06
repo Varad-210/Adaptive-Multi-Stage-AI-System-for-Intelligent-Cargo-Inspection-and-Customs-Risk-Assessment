@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner - CargoSight AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        base: {
+                            bg: '#0D0F12',
+                            surface: '#16181C',
+                            border: '#26292E',
+                        },
+                        text: {
+                            primary: '#EDEEF0',
+                            secondary: '#8A8F98',
+                        },
+                        accent: '#5B8DEF',
+                        status: {
+                            amber: '#D9A441',
+                            red: '#D9534F'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer base {
+            body { @apply bg-base-bg text-text-primary font-sans flex flex-col min-h-screen overflow-y-auto; }
+            h1, h2, h3, h4, h5, h6 { @apply font-semibold; }
+        }
+        @layer components {
+            .panel { @apply bg-base-surface border border-base-border; }
+            .btn { @apply border border-base-border bg-transparent text-text-primary px-4 py-2 text-[13px] rounded-[2px] transition-colors font-medium cursor-pointer; }
+            .btn-primary { @apply bg-accent border-accent text-white hover:bg-blue-600 hover:border-blue-600; }
+            .btn:focus, input:focus, select:focus { @apply outline-none ring-1 ring-accent; }
+            
+            .nav-link { @apply text-[14px] text-text-secondary pb-4 border-b-2 border-transparent hover:text-text-primary transition-colors; }
+            .nav-link.active { @apply text-text-primary border-accent font-medium; }
+            
+            .chip { @apply border border-base-border text-text-secondary px-3 py-1 text-[13px] rounded-[2px] hover:text-text-primary hover:border-text-secondary transition-colors bg-transparent; }
+        }
+        
+        body::-webkit-scrollbar { display: none; }
+        body { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .scanner-progress {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background-color: #5B8DEF;
+            transform-origin: 0% 50%;
+            animation: progress 1.5s ease-in-out infinite alternate;
+        }
+        @keyframes progress {
+            0% { transform: scaleX(0.01); transform-origin: 0% 50%; }
+            50% { transform: scaleX(1); transform-origin: 0% 50%; }
+            50.1% { transform: scaleX(1); transform-origin: 100% 50%; }
+            100% { transform: scaleX(0.01); transform-origin: 100% 50%; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="border-b border-base-border bg-base-bg px-6 pt-5">
+        <div class="max-w-[1600px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+            <div class="pb-4">
+                <h1 class="text-[16px] text-text-primary mb-1">CargoSight AI</h1>
+                <p class="text-[13px] text-text-secondary">Border security operator terminal</p>
+            </div>
+            
+            <nav class="flex gap-6 mt-auto">
+                <a href="{{ url_for('index') }}" class="nav-link active">Scanner</a>
+                <a href="{{ url_for('comparison.compare') }}" class="nav-link">Model comparison</a>
+                {% if session.role == 'Admin' %}
+                <a href="{{ url_for('auth.register') }}" class="nav-link">Add user</a>
+                {% endif %}
+                <a href="{{ url_for('auth.logout') }}" class="nav-link">Sign out</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="max-w-[1600px] mx-auto w-full p-6 flex-1 flex flex-col gap-6">
+        
+        <!-- Stats Row -->
+        <div class="panel flex divide-x divide-base-border rounded-[2px]">
+            <div class="flex-1 p-4 flex flex-col">
+                <span class="font-mono text-[22px] text-text-primary mb-1" id="stat-total">0</span>
+                <span class="text-[13px] text-text-secondary">Total scans</span>
+            </div>
+            <div class="flex-1 p-4 flex flex-col">
+                <span class="font-mono text-[22px] text-text-primary mb-1" id="stat-clean">0</span>
+                <span class="text-[13px] text-text-secondary">Clean</span>
+            </div>
+            <div class="flex-1 p-4 flex flex-col">
+                <span class="font-mono text-[22px] text-status-red mb-1" id="stat-anomalies">0</span>
+                <span class="text-[13px] text-text-secondary">Threats</span>
+            </div>
+            <div class="flex-1 p-4 flex flex-col">
+                <span class="font-mono text-[22px] text-status-amber mb-1" id="stat-rescans">0</span>
+                <span class="text-[13px] text-text-secondary">Re-scans</span>
+            </div>
+        </div>
+
+        <div class="grid lg:grid-cols-12 gap-6 flex-1 min-h-[600px]">
+            
+            <!-- Ingestion -->
+            <div class="lg:col-span-4 flex flex-col gap-6">
+                <div class="panel p-6 flex flex-col flex-1 rounded-[2px]">
+                    <h2 class="text-[14px] mb-4 text-text-primary">Data ingestion</h2>
+                    
+                    <div class="flex gap-2 mb-4 border-b border-base-border pb-4">
+                        <button onclick="toggleInput('upload')" id="btn-upload" class="text-[13px] text-text-primary border-b-2 border-accent pb-1 transition-all">Digital file</button>
+                        <button onclick="toggleInput('camera')" id="btn-camera" class="text-[13px] text-text-secondary border-b-2 border-transparent hover:text-text-primary pb-1 transition-all">Live scanner</button>
+                    </div>
+
+                    <div id="upload-area" class="flex-1 flex flex-col items-center justify-center border border-dashed border-base-border hover:border-text-secondary transition-colors p-6 text-center relative cursor-pointer bg-base-bg rounded-[2px]">
+                        <input type="file" id="file-input" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                        <p class="text-[13px] text-text-primary mb-1">Drag and drop file</p>
+                        <p class="text-[13px] text-text-secondary">or click to browse</p>
+                    </div>
+
+                    <div id="camera-area" class="hidden flex-1 flex-col">
+                        <div class="relative w-full flex-1 border border-base-border mb-4 bg-base-bg rounded-[2px] overflow-hidden">
+                            <video id="webcam" autoplay playsinline class="absolute inset-0 w-full h-full object-cover"></video>
+                        </div>
+                        <button onclick="captureWebcam()" class="btn btn-primary w-full">Capture frame</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analysis -->
+            <div class="lg:col-span-8 flex flex-col h-full">
+                <div class="panel p-6 flex flex-col flex-1 rounded-[2px] relative" id="results-panel">
+                    
+                    <div class="flex justify-between items-start mb-6 border-b border-base-border pb-4">
+                        <div>
+                            <h2 class="text-[14px] text-text-primary mb-1">Threat analysis engine</h2>
+                            <span id="status-badge" class="text-[13px] text-text-secondary font-mono">Standby</span>
+                        </div>
+                        <button onclick="clearScan()" id="btn-clear" class="hidden btn">Clear scan</button>
+                    </div>
+
+                    <div id="risk-container" class="hidden mb-6">
+                        <div class="flex justify-between items-end mb-2">
+                            <span class="text-[13px] text-text-secondary">Threat risk level</span>
+                            <span id="risk-text" class="text-[22px] font-mono text-text-primary">0%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-base-bg flex-1 flex items-center justify-center mb-6 relative border border-base-border min-h-[400px] rounded-[2px]">
+                        
+                        <div id="scanner-overlay" class="hidden absolute inset-0 z-20 pointer-events-none">
+                            <div class="scanner-progress"></div>
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <span class="bg-base-surface text-text-primary px-3 py-1 text-[13px] border border-base-border font-mono">Processing...</span>
+                            </div>
+                        </div>
+
+                        <img id="result-image" class="hidden h-full w-full object-contain z-10 transition-opacity">
+                        <div id="empty-state" class="text-text-secondary text-[13px] text-center">
+                            Awaiting visual data stream
+                        </div>
+                    </div>
+
+                    <!-- Metrics and Export -->
+                    <div id="metrics-panel" class="hidden grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 border-b border-base-border pb-6">
+                        <div>
+                            <span class="text-[13px] text-text-secondary block mb-1">Inference</span>
+                            <span id="metric-inf" class="text-[14px] font-mono text-text-primary"></span>
+                        </div>
+                        <div>
+                            <span class="text-[13px] text-text-secondary block mb-1">Processing</span>
+                            <span id="metric-proc" class="text-[14px] font-mono text-text-primary"></span>
+                        </div>
+                        <div>
+                            <span class="text-[13px] text-text-secondary block mb-1">FPS</span>
+                            <span id="metric-fps" class="text-[14px] font-mono text-text-primary"></span>
+                        </div>
+                        <div>
+                            <span class="text-[13px] text-text-secondary block mb-1">Avg confidence</span>
+                            <span id="metric-conf" class="text-[14px] font-mono text-text-primary"></span>
+                        </div>
+                    </div>
+
+                    <!-- Detections List -->
+                    <div id="detections-box" class="hidden mb-6 border-b border-base-border pb-6">
+                        <div class="text-[13px] text-text-secondary mb-3">Detected objects</div>
+                        <div id="detections-list" class="flex flex-wrap gap-2"></div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex justify-between items-end mt-auto pt-2">
+                        
+                        <div id="export-panel" class="hidden flex gap-2">
+                            <button onclick="exportReport('pdf')" class="btn">Export PDF</button>
+                            <button onclick="exportReport('csv')" class="btn">Export CSV</button>
+                            <button onclick="exportReport('json')" class="btn">Export JSON</button>
+                        </div>
+                        
+                        <div id="learning-panel" class="hidden flex items-center gap-3">
+                            <span class="text-[13px] text-text-secondary mr-2">Flag for retraining:</span>
+                            <button onclick="sendFeedback('object_in_object')" class="chip">Occlusion</button>
+                            <button onclick="sendFeedback('undetectable')" class="chip">Dense material</button>
+                            <button onclick="sendFeedback('half_object_detected')" class="chip">Poor bounds</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        let currentFile = null;
+        let webcamStream = null;
+        let lastScanData = null;
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const isError = type === 'error';
+            
+            toast.className = `bg-base-surface border border-base-border text-text-primary px-4 py-3 text-[13px] rounded-[2px] transition-all duration-300 transform translate-x-12 opacity-0 flex items-center gap-3 ${isError ? 'border-l-2 border-l-status-red' : ''}`;
+            
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+            
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-x-12', 'opacity-0');
+            });
+            
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-x-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function toggleInput(type) {
+            document.getElementById('upload-area').classList.toggle('hidden', type !== 'upload');
+            document.getElementById('upload-area').classList.toggle('flex', type === 'upload');
+            
+            document.getElementById('camera-area').classList.toggle('hidden', type !== 'camera');
+            document.getElementById('camera-area').classList.toggle('flex', type === 'camera');
+            
+            const btnUpload = document.getElementById('btn-upload');
+            const btnCamera = document.getElementById('btn-camera');
+            
+            if(type === 'upload') {
+                btnUpload.className = 'text-[13px] text-text-primary border-b-2 border-accent pb-1 transition-all';
+                btnCamera.className = 'text-[13px] text-text-secondary border-b-2 border-transparent hover:text-text-primary pb-1 transition-all';
+                stopWebcam();
+            } else {
+                btnCamera.className = 'text-[13px] text-text-primary border-b-2 border-accent pb-1 transition-all';
+                btnUpload.className = 'text-[13px] text-text-secondary border-b-2 border-transparent hover:text-text-primary pb-1 transition-all';
+                startWebcam();
+            }
+        }
+
+        async function startWebcam() {
+            const video = document.getElementById('webcam');
+            try {
+                webcamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                video.srcObject = webcamStream;
+            } catch (err) {
+                showToast("Could not access camera", "error");
+            }
+        }
+
+        function stopWebcam() {
+            if (webcamStream) webcamStream.getTracks().forEach(track => track.stop());
+        }
+
+        function captureWebcam() {
+            const video = document.getElementById('webcam');
+            if(!video.videoWidth) return showToast("Camera not ready", "error");
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            canvas.toBlob(blob => {
+                currentFile = new File([blob], "webcam_scan.jpg", { type: "image/jpeg" });
+                processImage(currentFile);
+            }, 'image/jpeg', 0.9);
+        }
+
+        // Drag and Drop
+        const uploadArea = document.getElementById('upload-area');
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+        function preventDefaults (e) { e.preventDefault(); e.stopPropagation(); }
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => uploadArea.classList.add('border-text-secondary', 'bg-base-surface'), false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => uploadArea.classList.remove('border-text-secondary', 'bg-base-surface'), false);
+        });
+        uploadArea.addEventListener('drop', (e) => { handleFiles(e.dataTransfer.files); }, false);
+
+        document.getElementById('file-input').addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        function handleFiles(files) {
+            if (files.length > 0) {
+                let file = files[0];
+                if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
+                    showToast('Only JPG/PNG images allowed', 'error');
+                    return;
+                }
+                currentFile = file;
+                processImage(currentFile);
+            }
+        }
+
+        function clearScan() {
+            document.getElementById('result-image').classList.add('hidden');
+            document.getElementById('empty-state').classList.remove('hidden');
+            document.getElementById('detections-box').classList.add('hidden');
+            document.getElementById('metrics-panel').classList.add('hidden');
+            document.getElementById('export-panel').classList.add('hidden');
+            document.getElementById('learning-panel').classList.add('hidden');
+            document.getElementById('btn-clear').classList.add('hidden'); 
+            document.getElementById('risk-container').classList.add('hidden');
+            
+            const statusBadge = document.getElementById('status-badge');
+            statusBadge.textContent = "Standby";
+            statusBadge.className = "text-[13px] text-text-secondary font-mono";
+            
+            document.getElementById('results-panel').className = "panel p-6 flex flex-col flex-1 rounded-[2px] relative";
+            
+            lastScanData = null;
+            currentFile = null;
+            document.getElementById('file-input').value = ""; 
+        }
+
+        async function exportReport(format) {
+            if (!lastScanData) return showToast("No scan data available", "error");
+            showToast(`Generating ${format.toUpperCase()}...`);
+            try {
+                const res = await fetch(`/export/${format}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(lastScanData)
+                });
+                if (!res.ok) throw new Error("Export failed");
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `report_${new Date().getTime()}.${format}`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } catch(e) {
+                showToast("Failed to export report", "error");
+            }
+        }
+
+        async function processImage(file) {
+            const statusBadge = document.getElementById('status-badge');
+            const resultsPanel = document.getElementById('results-panel');
+            const scannerOverlay = document.getElementById('scanner-overlay');
+            const emptyState = document.getElementById('empty-state');
+            const resultImg = document.getElementById('result-image');
+            const btnClear = document.getElementById('btn-clear');
+            
+            const riskContainer = document.getElementById('risk-container');
+            const riskText = document.getElementById('risk-text');
+            
+            statusBadge.textContent = "Processing tensor";
+            statusBadge.className = "text-[13px] text-accent font-mono";
+            
+            scannerOverlay.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+            btnClear.classList.add('hidden'); 
+            riskContainer.classList.add('hidden');
+            document.getElementById('learning-panel').classList.add('hidden');
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                resultImg.src = e.target.result;
+                resultImg.classList.remove('hidden');
+                resultImg.classList.add('opacity-30');
+            };
+            reader.readAsDataURL(file);
+
+            document.getElementById('detections-box').classList.add('hidden');
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                const res = await fetch('/scan', { method: 'POST', body: formData });
+                if (!res.ok) throw new Error("Server error");
+                const data = await res.json();
+                
+                scannerOverlay.classList.add('hidden');
+                resultImg.classList.remove('opacity-30');
+                resultImg.src = data.image;
+                btnClear.classList.remove('hidden'); 
+
+                // RISK SCORE
+                riskContainer.classList.remove('hidden');
+                let score = data.risk_score || 0;
+                riskText.textContent = score + "%";
+                
+                if (score === 0) {
+                    riskText.className = "text-[22px] font-mono text-text-primary";
+                } else if (score < 50) {
+                    riskText.className = "text-[22px] font-mono text-status-amber";
+                } else {
+                    riskText.className = "text-[22px] font-mono text-status-red";
+                }
+
+                if (data.detections.length > 0) {
+                    statusBadge.textContent = "Threat detected";
+                    statusBadge.className = "text-[13px] text-status-red font-mono";
+                    
+                    resultsPanel.classList.add('border-l-2', 'border-l-status-red');
+
+                    document.getElementById('detections-box').classList.remove('hidden');
+                    const list = document.getElementById('detections-list');
+                    
+                    list.innerHTML = data.detections.map(d => `
+                        <div class="border border-base-border px-3 py-1 flex items-center gap-3">
+                            <span class="text-[13px] text-text-primary font-medium">${d.class}</span>
+                            <span class="text-[13px] text-text-secondary font-mono">${d.confidence}%</span>
+                        </div>
+                    `).join('');
+                } else {
+                    statusBadge.textContent = "Clear";
+                    statusBadge.className = "text-[13px] text-text-primary font-mono";
+                    resultsPanel.classList.remove('border-l-2', 'border-l-status-red');
+                }
+
+                document.getElementById('metrics-panel').classList.remove('hidden');
+                document.getElementById('export-panel').classList.remove('hidden');
+                document.getElementById('learning-panel').classList.remove('hidden');
+                
+                document.getElementById('metric-inf').textContent = data.metrics.inference_time_ms + 'ms';
+                document.getElementById('metric-proc').textContent = data.metrics.processing_time_ms + 'ms';
+                document.getElementById('metric-fps').textContent = data.metrics.fps;
+                document.getElementById('metric-conf').textContent = data.metrics.avg_confidence + '%';
+                
+                lastScanData = {
+                    filename: currentFile ? currentFile.name : "unknown",
+                    model: "YOLOv11",
+                    detections: data.detections,
+                    metrics: data.metrics,
+                    risk_score: score,
+                    image_b64: data.image
+                };
+
+                updateStats(data.stats);
+                showToast("Scan complete");
+
+            } catch (err) {
+                scannerOverlay.classList.add('hidden');
+                btnClear.classList.remove('hidden');
+                showToast("Failed to process scan", "error");
+                statusBadge.textContent = "Error";
+                statusBadge.className = "text-[13px] text-status-red font-mono";
+            }
+        }
+
+        async function sendFeedback(reason) {
+            if (!currentFile) return showToast("No image to flag!", "error");
+            
+            const formData = new FormData();
+            formData.append('image', currentFile);
+            formData.append('reason', reason);
+
+            try {
+                const res = await fetch('/feedback', { method: 'POST', body: formData });
+                const data = await res.json();
+                
+                updateStats(data.stats);
+                const readableReason = reason.replace(/_/g, ' ').toLowerCase();
+                showToast(`Flagged for: ${readableReason}`);
+                
+                clearScan();
+                
+            } catch (err) {
+                showToast("Error saving data", "error");
+            }
+        }
+
+        function updateStats(stats) {
+            document.getElementById('stat-total').textContent = stats.total_scans;
+            document.getElementById('stat-clean').textContent = stats.clean_scans;
+            document.getElementById('stat-anomalies').textContent = stats.anomalies_found;
+            document.getElementById('stat-rescans').textContent = stats.re_scans;
+        }
+    </script>
+</body>
+</html>

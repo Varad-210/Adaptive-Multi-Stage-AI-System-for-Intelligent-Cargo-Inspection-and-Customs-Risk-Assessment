@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Benchmark History - CargoSight AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        base: {
+                            bg: '#0D0F12',
+                            surface: '#16181C',
+                            border: '#26292E',
+                        },
+                        text: {
+                            primary: '#EDEEF0',
+                            secondary: '#8A8F98',
+                        },
+                        accent: '#5B8DEF',
+                        status: {
+                            amber: '#D9A441',
+                            red: '#D9534F'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer base {
+            body { @apply bg-base-bg text-text-primary font-sans flex flex-col min-h-screen; }
+            h1, h2, h3, h4, h5, h6 { @apply font-semibold; }
+        }
+        @layer components {
+            .panel { @apply bg-base-surface border border-base-border; }
+            .nav-link { @apply text-[14px] text-text-secondary pb-4 border-b-2 border-transparent hover:text-text-primary transition-colors; }
+            .nav-link.active { @apply text-text-primary border-accent font-medium; }
+        }
+        table { @apply w-full text-left border-collapse; }
+        th { @apply border-b border-base-border py-3 px-4 text-[13px] text-text-secondary font-normal; }
+        td { @apply border-b border-base-border py-3 px-4 text-[14px] font-mono text-text-secondary; }
+    </style>
+</head>
+<body>
+
+    <header class="border-b border-base-border bg-base-bg px-6 pt-5">
+        <div class="max-w-[1600px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+            <div class="pb-4">
+                <h1 class="text-[16px] text-text-primary mb-1">Benchmark history</h1>
+                <p class="text-[13px] text-text-secondary">Historical model comparisons</p>
+            </div>
+            
+            <nav class="flex gap-6 mt-auto">
+                <a href="{{ url_for('index') }}" class="nav-link">Scanner</a>
+                <a href="{{ url_for('comparison.compare') }}" class="nav-link active">Model comparison</a>
+                {% if session.role == 'Admin' %}
+                <a href="{{ url_for('auth.register') }}" class="nav-link">Add user</a>
+                {% endif %}
+                <a href="{{ url_for('auth.logout') }}" class="nav-link">Sign out</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="max-w-[1600px] mx-auto w-full p-6 mt-4 flex-1">
+        
+        <div class="panel rounded-[2px] overflow-x-auto">
+            <table>
+                <thead class="bg-base-surface">
+                    <tr>
+                        <th>Date</th>
+                        <th>Filename</th>
+                        <th>Model</th>
+                        <th>Objects</th>
+                        <th>Avg conf</th>
+                        <th>Inf time (ms)</th>
+                        <th>FPS</th>
+                        <th>mAP50</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-base-bg">
+                    {% for b in benchmarks %}
+                    <tr class="hover:bg-base-surface transition-colors">
+                        <td>{{ b.date.split(' ')[0] }}</td>
+                        <td class="font-sans text-[13px] max-w-[150px] truncate">{{ b.filename }}</td>
+                        <td class="font-sans font-medium text-text-primary">{{ b.model }}</td>
+                        <td>{{ b.objects }}</td>
+                        <td>{{ b.avg_confidence }}%</td>
+                        <td>{{ b.inference_time }}</td>
+                        <td>{{ b.fps }}</td>
+                        <td class="text-text-primary font-medium">{{ b.map50 }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-8 font-sans text-text-secondary">No benchmarks recorded.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+</body>
+</html>

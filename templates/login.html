@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - CargoSight AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        base: {
+                            bg: '#0D0F12',
+                            surface: '#16181C',
+                            border: '#26292E',
+                        },
+                        text: {
+                            primary: '#EDEEF0',
+                            secondary: '#8A8F98',
+                        },
+                        accent: '#5B8DEF',
+                        status: {
+                            amber: '#D9A441',
+                            red: '#D9534F'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer base {
+            body { @apply bg-base-bg text-text-primary font-sans flex items-center justify-center min-h-screen; }
+        }
+        @layer components {
+            .panel { @apply bg-base-surface border border-base-border; }
+            .btn { @apply border border-base-border bg-transparent text-text-primary px-4 py-2 text-[14px] rounded-[2px] transition-colors font-medium cursor-pointer; }
+            .btn-primary { @apply bg-accent border-accent text-white hover:bg-blue-600 hover:border-blue-600; }
+            .btn:focus, input:focus { @apply outline-none ring-1 ring-accent; }
+            input { @apply w-full bg-base-bg border border-base-border text-text-primary px-3 py-2 text-[14px] rounded-[2px] focus:outline-none focus:border-accent placeholder-text-secondary; }
+            label { @apply block text-[13px] text-text-secondary mb-1; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="panel p-8 w-full max-w-md">
+    <div class="mb-8">
+        <h2 class="text-[22px] font-semibold text-text-primary mb-1">CargoSight AI</h2>
+        <p class="text-[14px] text-text-secondary">Sign in to operator terminal</p>
+    </div>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mb-6 space-y-2">
+        {% for category, message in messages %}
+          <div class="text-[13px] {% if category == 'danger' %}text-status-red{% else %}text-text-primary{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('auth.login') }}" class="space-y-6">
+        <div>
+            <label for="email">Email address</label>
+            <input type="email" id="email" name="email" required autocomplete="email">
+        </div>
+        <div>
+            <div class="flex justify-between items-center mb-1">
+                <label for="password" class="mb-0">Password</label>
+                <a href="#" class="text-[13px] text-text-secondary hover:text-text-primary transition-colors">Forgot password?</a>
+            </div>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-full mt-2">Sign in</button>
+    </form>
+</div>
+
+</body>
+</html>
