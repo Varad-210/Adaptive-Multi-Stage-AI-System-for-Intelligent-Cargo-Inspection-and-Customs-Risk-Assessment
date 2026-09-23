@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CargoSight AI{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        base: {
+                            bg: '#F6F8FB',
+                            surface: '#FFFFFF',
+                            border: '#E2E8F0',
+                            sidebar: '#0F172A',
+                            sidebarHover: '#1E293B'
+                        },
+                        text: {
+                            primary: '#111827',
+                            secondary: '#64748B',
+                            sidebar: '#94A3B8',
+                            sidebarActive: '#FFFFFF'
+                        },
+                        accent: '#2563EB',
+                        status: {
+                            success: '#16A34A',
+                            warning: '#F59E0B',
+                            danger: '#DC2626'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer base {
+            body { 
+                @apply bg-base-bg text-text-primary font-sans antialiased m-0 p-0 flex h-screen overflow-hidden; 
+            }
+            h1, h2, h3, h4, h5, h6 { @apply font-semibold tracking-tight; }
+        }
+        @layer components {
+            .btn { @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-[14px] rounded-lg transition-colors font-medium cursor-pointer border focus:outline-none focus:ring-2 focus:ring-offset-2; }
+            .btn-primary { @apply bg-accent border-accent text-white hover:bg-blue-700 focus:ring-accent; }
+            .btn-secondary { @apply bg-white border-base-border text-text-primary hover:bg-gray-50 focus:ring-gray-200; }
+            .btn-danger { @apply bg-white border-status-danger text-status-danger hover:bg-red-50 focus:ring-status-danger; }
+            
+            .card { @apply bg-base-surface border border-base-border rounded-xl shadow-sm; }
+            
+            .input-field { @apply w-full border border-base-border rounded-lg px-4 py-2.5 text-[14px] text-text-primary bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-shadow; }
+            .label { @apply block text-[13px] font-medium text-text-secondary mb-1.5; }
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="w-[260px] bg-base-sidebar h-full flex flex-col flex-shrink-0">
+        <!-- Logo -->
+        <div class="h-[72px] px-6 flex items-center border-b border-white/10">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
+                    <i data-lucide="scan-line" class="text-white w-5 h-5"></i>
+                </div>
+                <div>
+                    <h1 class="text-white text-[16px] font-semibold tracking-tight leading-tight">CargoSight AI</h1>
+                    <span class="text-text-sidebar text-[11px] font-medium">AI Inspection Platform</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="flex-1 overflow-y-auto custom-scrollbar py-6 px-3 flex flex-col gap-1">
+            <div class="px-3 text-[11px] font-semibold text-text-sidebar uppercase tracking-wider mb-2 mt-2">Platform</div>
+            
+            <a href="/" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors {% if request.path == '/' or request.path == '/scan' %}bg-accent/10 text-accent{% else %}text-text-sidebar hover:bg-base-sidebarHover hover:text-white{% endif %}">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                Scanner
+            </a>
+            
+            <a href="/scan-history" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors {% if request.path == '/scan-history' %}bg-accent/10 text-accent{% else %}text-text-sidebar hover:bg-base-sidebarHover hover:text-white{% endif %}">
+                <i data-lucide="history" class="w-4 h-4"></i>
+                Scan History
+            </a>
+            
+            <a href="/model-comparison" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors {% if request.path == '/model-comparison' %}bg-accent/10 text-accent{% else %}text-text-sidebar hover:bg-base-sidebarHover hover:text-white{% endif %}">
+                <i data-lucide="cpu" class="w-4 h-4"></i>
+                Model Benchmark
+            </a>
+
+            <div class="px-3 text-[11px] font-semibold text-text-sidebar uppercase tracking-wider mb-2 mt-6">Administration</div>
+            
+            {% if session.get('role') == 'Admin' %}
+            <a href="/auth/register" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors {% if request.path == '/auth/register' %}bg-accent/10 text-accent{% else %}text-text-sidebar hover:bg-base-sidebarHover hover:text-white{% endif %}">
+                <i data-lucide="users" class="w-4 h-4"></i>
+                Operators
+            </a>
+            {% endif %}
+        </nav>
+
+        <!-- Bottom User Profile -->
+        <div class="p-4 border-t border-white/10">
+            <div class="flex items-center gap-3 px-2 mb-4">
+                <div class="w-2 h-2 rounded-full bg-status-success shadow-[0_0_8px_rgba(22,163,74,0.8)]"></div>
+                <span class="text-text-sidebar text-[12px] font-medium">System Online</span>
+            </div>
+            
+            {% if session.get('user_id') %}
+            <div class="flex items-center justify-between bg-base-sidebarHover p-3 rounded-lg">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-accent/20 text-accent flex items-center justify-center text-[13px] font-bold">
+                        {{ session.get('name', 'O')[0] | upper }}
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-white text-[13px] font-medium leading-tight">{{ session.get('name', 'Operator') }}</span>
+                        <span class="text-text-sidebar text-[11px]">{{ session.get('role', 'User') }}</span>
+                    </div>
+                </div>
+                <a href="/auth/logout" class="text-text-sidebar hover:text-white transition-colors" title="Sign out">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+        
+        <!-- Top Header -->
+        <header class="h-[72px] bg-base-surface border-b border-base-border px-8 flex items-center justify-between flex-shrink-0">
+            <!-- Breadcrumbs -->
+            <div class="flex items-center text-[14px] text-text-secondary">
+                <span>CargoSight AI</span>
+                <i data-lucide="chevron-right" class="w-4 h-4 mx-2 text-base-border"></i>
+                <span class="text-text-primary font-medium">{% block page_title %}Dashboard{% endblock %}</span>
+            </div>
+            
+            <!-- Right Actions -->
+            <div class="flex items-center gap-4">
+                <button class="relative p-2 text-text-secondary hover:text-text-primary transition-colors">
+                    <i data-lucide="bell" class="w-5 h-5"></i>
+                    <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-status-danger rounded-full border-2 border-white"></span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <main class="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-8">
+            <div class="max-w-[1500px] mx-auto h-full flex flex-col gap-6">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 pointer-events-none"></div>
+
+    <script>
+        lucide.createIcons();
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let icon = type === 'error' ? 'alert-circle' : 'check-circle-2';
+            let colorClass = type === 'error' ? 'text-status-danger' : 'text-status-success';
+            let borderClass = type === 'error' ? 'border-status-danger' : 'border-base-border';
+            
+            toast.className = `card border-l-4 ${borderClass} bg-white px-4 py-3 flex items-center gap-3 min-w-[300px] shadow-lg transition-all duration-300 transform translate-x-12 opacity-0 pointer-events-auto`;
+            
+            toast.innerHTML = `
+                <i data-lucide="${icon}" class="${colorClass} w-5 h-5"></i>
+                <span class="text-[14px] font-medium text-text-primary">${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            lucide.createIcons({ root: toast });
+            
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-x-12', 'opacity-0');
+            });
+            
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-x-12');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

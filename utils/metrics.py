@@ -1,5 +1,4 @@
 import time
-
 class MetricsTracker:
     def __init__(self):
         self.start_time = None

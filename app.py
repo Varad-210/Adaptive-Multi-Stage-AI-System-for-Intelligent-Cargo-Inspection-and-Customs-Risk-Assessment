@@ -55,6 +55,11 @@ for folder in FEEDBACK_FOLDERS:
 def index():
     return render_template('index.html')
 
+@app.route('/scan-history')
+@login_required
+def scan_history():
+    return render_template('scan_history.html')
+
 @app.route('/scan', methods=['POST'])
 @login_required
 def scan_image():
