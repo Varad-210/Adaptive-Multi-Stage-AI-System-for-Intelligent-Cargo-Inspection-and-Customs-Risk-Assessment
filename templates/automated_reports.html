@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Automated Reports - CargoSight AI{% endblock %}
+{% block page_title %}Automated Reports{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-2">
+  <div>
+    <h2 class="text-[18px] font-bold text-text-primary">Report History</h2>
+    <p class="text-[13px] text-text-secondary mt-1">Automatically and manually generated inspection reports.</p>
+  </div>
+</div>
+
+<div class="card overflow-hidden">
+  {% if reports %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-left border-collapse min-w-[900px]">
+      <thead class="bg-base-bg border-b border-base-border">
+        <tr>
+          <th class="px-6 py-4 text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Report ID</th>
+          <th class="px-6 py-4 text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Case ID</th>
+          <th class="px-6 py-4 text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Generated At</th>
+          <th class="px-6 py-4 text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Trigger</th>
+          <th class="px-6 py-4 text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Risk Score</th>
+          <th class="px-6 py-4 text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Risk Level</th>
+          <th class="px-6 py-4 text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Status</th>
+          <th class="px-6 py-4 text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-base-border bg-white">
+        {% for r in reports %}
+        <tr class="hover:bg-gray-50 transition-colors">
+          <td class="px-6 py-4 font-mono text-[12px] font-semibold text-text-primary">{{ r.report_id }}</td>
+          <td class="px-6 py-4 font-mono text-[12px] text-text-secondary">{{ r.case_id }}</td>
+          <td class="px-6 py-4 text-[12px] text-text-secondary">{{ r.generated_at[:16] if r.generated_at else '' }}</td>
+          <td class="px-6 py-4">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium
+              {% if r.trigger_reason == 'auto_threshold' %}bg-blue-50 text-accent border border-blue-200
+              {% else %}bg-gray-50 text-gray-600 border border-gray-200{% endif %}">
+              {{ 'Auto' if r.trigger_reason == 'auto_threshold' else 'Manual' }}
+            </span>
+          </td>
+          <td class="px-6 py-4 font-mono text-[13px] font-bold
+            {% if r.risk_level == 'CRITICAL' %}text-status-danger
+            {% elif r.risk_level == 'HIGH' %}text-[#EA580C]
+            {% elif r.risk_level == 'MEDIUM' %}text-status-warning
+            {% else %}text-status-success{% endif %}">
+            {{ r.risk_score }}
+          </td>
+          <td class="px-6 py-4">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold border
+              {% if r.risk_level == 'CRITICAL' %}bg-red-50 text-status-danger border-red-200
+              {% elif r.risk_level == 'HIGH' %}bg-orange-50 text-[#EA580C] border-orange-200
+              {% elif r.risk_level == 'MEDIUM' %}bg-yellow-50 text-status-warning border-yellow-200
+              {% else %}bg-green-50 text-status-success border-green-200{% endif %}">
+              {{ r.risk_level }}
+            </span>
+          </td>
+          <td class="px-6 py-4">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-green-50 text-status-success border border-green-200">
+              {{ r.status }}
+            </span>
+          </td>
+          <td class="px-6 py-4">
+            <a href="/api/reports/download/{{ r.report_id }}" class="btn btn-secondary text-[12px] py-1 px-3">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i> PDF
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="flex flex-col items-center justify-center py-24 text-center">
+    <div class="w-14 h-14 rounded-full bg-base-bg flex items-center justify-center mb-4">
+      <i data-lucide="file-text" class="w-7 h-7 text-text-secondary opacity-50"></i>
+    </div>
+    <h3 class="text-[16px] font-semibold text-text-primary mb-2">No reports yet</h3>
+    <p class="text-[13px] text-text-secondary max-w-sm mb-4">
+      Reports are automatically generated when a scan scores above the threshold, or you can generate them manually from the Risk Intelligence page.
+    </p>
+    <a href="/risk-intelligence" class="btn btn-primary">
+      <i data-lucide="shield-alert" class="w-4 h-4"></i> View Risk Intelligence
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+<div class="p-4 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-[13px] flex items-start gap-3 mt-2">
+  <i data-lucide="info" class="w-5 h-5 shrink-0"></i>
+  <p>Reports are automatically generated for scans with a risk score &ge; 60. All reports are stored locally &mdash; no data is transmitted externally.</p>
+</div>
+{% endblock %}

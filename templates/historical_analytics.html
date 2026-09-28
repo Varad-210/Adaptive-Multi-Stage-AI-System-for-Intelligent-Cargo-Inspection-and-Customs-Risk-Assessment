@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Historical Analytics - CargoSight AI{% endblock %}
+{% block page_title %}Historical Analytics{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- KPI Row -->
+<div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+  <div class="card p-5 border-l-4 border-l-accent flex items-center justify-between">
+    <div>
+      <div class="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-1">Total Inspections</div>
+      <div class="text-[28px] font-bold text-text-primary">{{ overview.total_assessments }}</div>
+    </div>
+    <div class="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-accent">
+      <i data-lucide="activity" class="w-5 h-5"></i>
+    </div>
+  </div>
+  <div class="card p-5 border-l-4 border-l-status-success flex items-center justify-between">
+    <div>
+      <div class="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-1">Low Risk</div>
+      <div class="text-[28px] font-bold text-status-success">{{ overview.risk_distribution.LOW }}</div>
+    </div>
+    <i data-lucide="shield-check" class="w-6 h-6 text-status-success opacity-60"></i>
+  </div>
+  <div class="card p-5 border-l-4 border-l-status-warning flex items-center justify-between">
+    <div>
+      <div class="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-1">Medium Risk</div>
+      <div class="text-[28px] font-bold text-status-warning">{{ overview.risk_distribution.MEDIUM }}</div>
+    </div>
+    <i data-lucide="alert-triangle" class="w-6 h-6 text-status-warning opacity-60"></i>
+  </div>
+  <div class="card p-5 border-l-4 border-l-[#EA580C] flex items-center justify-between">
+    <div>
+      <div class="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-1">High Risk</div>
+      <div class="text-[28px] font-bold text-[#EA580C]">{{ overview.risk_distribution.HIGH }}</div>
+    </div>
+    <i data-lucide="shield-alert" class="w-6 h-6 text-[#EA580C] opacity-60"></i>
+  </div>
+  <div class="card p-5 border-l-4 border-l-status-danger flex items-center justify-between">
+    <div>
+      <div class="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-1">Critical</div>
+      <div class="text-[28px] font-bold text-status-danger">{{ overview.risk_distribution.CRITICAL }}</div>
+    </div>
+    <i data-lucide="alert-octagon" class="w-6 h-6 text-status-danger opacity-60"></i>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <!-- Risk Distribution Chart -->
+  <div class="card p-6">
+    <h3 class="text-[14px] font-semibold text-text-primary mb-6 flex items-center gap-2">
+      <i data-lucide="pie-chart" class="w-4 h-4 text-accent"></i> Risk Distribution
+    </h3>
+    {% if overview.total_assessments > 0 %}
+    <div class="relative h-[240px] flex items-center justify-center">
+      <canvas id="riskDonut"></canvas>
+    </div>
+    {% else %}
+    <div class="h-[240px] flex items-center justify-center text-text-secondary text-[13px]">
+      Insufficient historical data for trend analysis.
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Top Detected Classes -->
+  <div class="card p-6">
+    <h3 class="text-[14px] font-semibold text-text-primary mb-4 flex items-center gap-2">
+      <i data-lucide="bar-chart-2" class="w-4 h-4 text-accent"></i> Top Detected Object Classes
+    </h3>
+    {% if overview.top_detected_classes %}
+    <div class="space-y-3">
+      {% set max_count = overview.top_detected_classes[0][1] %}
+      {% for cls, cnt in overview.top_detected_classes %}
+      <div>
+        <div class="flex justify-between text-[13px] mb-1">
+          <span class="font-medium text-text-primary">{{ cls }}</span>
+          <span class="font-mono text-text-secondary">{{ cnt }} detections</span>
+        </div>
+        <div class="h-2 bg-base-bg rounded-full overflow-hidden border border-base-border">
+          <div class="h-full bg-accent rounded-full" style="width:{{ (cnt / max_count * 100)|int }}%"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-[13px] text-text-secondary text-center py-8">Insufficient historical data for trend analysis.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Trend Table -->
+<div class="card overflow-hidden">
+  <div class="px-6 py-4 border-b border-base-border flex items-center justify-between">
+    <h3 class="text-[14px] font-semibold text-text-primary flex items-center gap-2">
+      <i data-lucide="trending-up" class="w-4 h-4 text-accent"></i> Historical Inspection Trend
+    </h3>
+    <div class="flex gap-2">
+      <button onclick="loadTrend(7)"   class="btn btn-secondary text-[12px] py-1 px-3">7d</button>
+      <button onclick="loadTrend(30)"  class="btn btn-secondary text-[12px] py-1 px-3">30d</button>
+      <button onclick="loadTrend(90)"  class="btn btn-secondary text-[12px] py-1 px-3">90d</button>
+    </div>
+  </div>
+
+  <div id="trend-container">
+    {% if overview.recent_trend %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse min-w-[600px]" id="trend-table">
+        <thead class="bg-base-bg border-b border-base-border">
+          <tr>
+            <th class="px-6 py-3 text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Date</th>
+            <th class="px-6 py-3 text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Total Inspections</th>
+            <th class="px-6 py-3 text-[11px] font-semibold text-text-secondary uppercase tracking-wider">High-Risk Count</th>
+            <th class="px-6 py-3 text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Avg Risk Score</th>
+          </tr>
+        </thead>
+        <tbody id="trend-tbody" class="divide-y divide-base-border bg-white">
+          {% for row in overview.recent_trend %}
+          <tr class="hover:bg-gray-50 transition-colors">
+            <td class="px-6 py-3 text-[13px] font-mono text-text-primary font-medium">{{ row.d }}</td>
+            <td class="px-6 py-3 text-[13px] font-mono text-text-secondary">{{ row.total }}</td>
+            <td class="px-6 py-3 text-[13px] font-mono text-status-danger font-semibold">{{ row.high_risk }}</td>
+            <td class="px-6 py-3 text-[13px] font-mono text-text-primary">{{ row.avg_risk_score or 'N/A' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="px-6 py-16 text-center text-[13px] text-text-secondary" id="trend-empty">
+      <i data-lucide="bar-chart-2" class="w-8 h-8 mx-auto mb-3 opacity-40"></i>
+      <p class="font-medium">Insufficient historical data for trend analysis.</p>
+      <p class="mt-1">Scan more images to populate this dashboard.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Avg Risk Score -->
+<div class="card p-6 flex items-center justify-between">
+  <div>
+    <div class="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-1">Average Risk Score (all time)</div>
+    <div class="text-[36px] font-bold text-text-primary">{{ overview.avg_risk_score }}</div>
+    <div class="text-[12px] text-text-secondary mt-1">Based on {{ overview.total_assessments }} total inspections</div>
+  </div>
+  <div class="w-14 h-14 rounded-full bg-accent/10 flex items-center justify-center text-accent">
+    <i data-lucide="target" class="w-7 h-7"></i>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Donut chart
+{% if overview.total_assessments > 0 %}
+const dist = {{ overview.risk_distribution | tojson }};
+new Chart(document.getElementById('riskDonut'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Low', 'Medium', 'High', 'Critical'],
+    datasets: [{
+      data: [dist.LOW, dist.MEDIUM, dist.HIGH, dist.CRITICAL],
+      backgroundColor: ['#16A34A','#D97706','#EA580C','#DC2626'],
+      borderWidth: 2, borderColor: '#fff'
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter' }, boxWidth: 14 } } }
+  }
+});
+{% endif %}
+
+async function loadTrend(days) {
+  const res  = await fetch(`/api/analytics/trends?days=${days}`);
+  const data = await res.json();
+  const tbody = document.getElementById('trend-tbody');
+  const empty = document.getElementById('trend-empty');
+  const table = document.getElementById('trend-table');
+
+  if (!data.length) {
+    if (table) table.style.display = 'none';
+    if (empty) empty.style.display = '';
+    return;
+  }
+
+  if (table) table.style.display = '';
+  if (empty) empty.style.display = 'none';
+
+  tbody.innerHTML = data.map(r => `
+    <tr class="hover:bg-gray-50 transition-colors">
+      <td class="px-6 py-3 text-[13px] font-mono text-text-primary font-medium">${r.date}</td>
+      <td class="px-6 py-3 text-[13px] font-mono text-text-secondary">${r.total_inspections}</td>
+      <td class="px-6 py-3 text-[13px] font-mono text-status-danger font-semibold">${r.high_risk_count}</td>
+      <td class="px-6 py-3 text-[13px] font-mono text-text-primary">${r.avg_risk_score ?? 'N/A'}</td>
+    </tr>
+  `).join('');
+}
+</script>
+{% endblock %}

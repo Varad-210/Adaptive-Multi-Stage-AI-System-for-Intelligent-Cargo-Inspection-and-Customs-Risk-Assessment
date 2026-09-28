@@ -113,6 +113,21 @@
                 Model Benchmark
             </a>
 
+            <a href="/risk-intelligence" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors {% if request.path.startswith('/risk-intelligence') %}bg-accent/10 text-accent{% else %}text-text-sidebar hover:bg-base-sidebarHover hover:text-white{% endif %}">
+                <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                Risk Intelligence
+            </a>
+
+            <a href="/automated-reports" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors {% if request.path == '/automated-reports' %}bg-accent/10 text-accent{% else %}text-text-sidebar hover:bg-base-sidebarHover hover:text-white{% endif %}">
+                <i data-lucide="file-text" class="w-4 h-4"></i>
+                Automated Reports
+            </a>
+
+            <a href="/historical-analytics" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors {% if request.path == '/historical-analytics' %}bg-accent/10 text-accent{% else %}text-text-sidebar hover:bg-base-sidebarHover hover:text-white{% endif %}">
+                <i data-lucide="bar-chart-2" class="w-4 h-4"></i>
+                Historical Analytics
+            </a>
+
             <div class="px-3 text-[11px] font-semibold text-text-sidebar uppercase tracking-wider mb-2 mt-6">Administration</div>
             
             {% if session.get('role') == 'Admin' %}
