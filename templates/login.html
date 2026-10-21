@@ -100,8 +100,18 @@
                     Sign in to Workspace
                 </button>
             </form>
-            
-            <div class="mt-8 flex items-center justify-center gap-2 text-[12px] font-medium text-gray-500">
+
+            <!-- Register Link -->
+            <div class="mt-6 pt-6 border-t border-gray-100 text-center">
+                <p class="text-[13px] text-gray-500">
+                    New operator?
+                    <a href="{{ url_for('auth.register') }}" class="text-blue-600 font-semibold hover:text-blue-700 ml-1">
+                        Request access &rarr;
+                    </a>
+                </p>
+            </div>
+
+            <div class="mt-6 flex items-center justify-center gap-2 text-[12px] font-medium text-gray-500">
                 <i data-lucide="shield" class="w-4 h-4 text-green-600"></i>
                 Authorized personnel only. Secure connection.
             </div>
